@@ -62,13 +62,17 @@ def get_entity_repository_class(entity: type[Entity]) -> type[Repository]:
 
 
 class BucketRepository(Repository):
+    buckets: dict[type[Entity], Bucket]
     entities = [Bucket]
+
+    def __init__(self) -> None:
+        self.buckets = {}
 
     async def bootstrap(self, driver: Driver) -> tuple[Bucket, Bucket]:
         bucket_row = await driver.find_or_create(
             name='Bucket',
-            find={'id': 1},
-            create={
+            query={'id': 1},
+            data={
                 'bucket_id': 1,
                 'id': 1,
                 'key': '',
@@ -80,8 +84,8 @@ class BucketRepository(Repository):
 
         storage_row = await driver.find_or_create(
             name='Bucket',
-            find={'id': 2},
-            create={
+            query={'id': 2},
+            data={
                 'bucket_id': 1,
                 'id': 2,
                 'key': '',
@@ -91,8 +95,8 @@ class BucketRepository(Repository):
             }
         )
 
-        self.bucket_bucket = self.make(Bucket, bucket_row)
-        self.storage_bucket = self.make(Bucket, storage_row)
+        self.buckets[Bucket] = self.make(Bucket, bucket_row)
+        self.buckets[Storage] = self.make(Bucket, storage_row)
 
 
 class StorageRepository(Repository):
@@ -101,6 +105,6 @@ class StorageRepository(Repository):
     async def bootstrap(self, driver: Driver, storage: Storage):
         await driver.find_or_create(
             name='Storage',
-            find={'id': storage.id},
-            create=dict(bucket_id=2, **storage.__dict__),
+            query={'id': storage.id},
+            data=dict(bucket_id=2, **storage.__dict__),
         )

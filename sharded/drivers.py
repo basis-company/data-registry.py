@@ -1,7 +1,7 @@
 from functools import cache
-from typing import Protocol
-from sharded.entity import Entity
+from typing import Optional, Protocol
 
+from sharded.entity import Entity
 from sharded.schema import StorageDriver
 
 
@@ -9,13 +9,20 @@ class Driver(Protocol):
     def __init__(self, dsn: str) -> None:
         ...
 
-    async def find(self, name: str, params: dict) -> list[dict]:
+    async def create(self, name: str, data: dict) -> dict:
+        raise NotImplementedError()
+
+    async def find(self, name: str, queries: list[dict]) -> list[dict]:
         raise NotImplementedError()
 
     async def find_or_create(
-        self, name: str, find: dict, create: dict
+        self, name: str, query: dict, data: dict
     ) -> dict:
-        raise NotImplementedError()
+        result = await self.find(name, [query])
+        if len(result):
+            return result[0]
+
+        return await self.create(name, data)
 
     async def init_schema(self, entity: Entity) -> None:
         raise NotImplementedError()
@@ -43,34 +50,31 @@ def get_implementation(driver):
 
 
 class MemoryDriver(Driver):
-    def __init__(self, dsn: str) -> None:
-        super().__init__(dsn)
-        self.data: dict[str, list[dict]] = {}
+    data: Optional[dict[str, list[dict]]] = None
 
-    async def find_or_create(
-        self, name: str, find: dict, create: dict
-    ) -> dict:
-        rows = await self.find(name, [find])
-        if len(rows):
-            return rows[0]
+    async def create(self, name: str, data: dict) -> dict:
+        data['id'] = len(self.data[name]) + 1
+        self.data[name].append(data)
+        return data
 
-        create['id'] = len(self.data[name]) + 1
-        self.data[name].append(create)
-        return create
-
-    async def find(self, name: str, params: list) -> list[dict]:
+    async def find(self, name: str, queries: list[dict]) -> list[dict]:
         return [
             row for row in self.data[name]
-            if await self.is_valid(row, params)
+            if await self.is_valid(row, queries)
         ]
 
-    async def is_valid(self, row, params) -> bool:
-        for param in params:
-            if False not in [row[key] == value for (key, value) in param.items()]:
+    async def init_schema(self, entity: Entity) -> None:
+        if not self.data:
+            self.data = {}
+
+        if entity.__name__ not in self.data:
+            self.data[entity.__name__] = []
+
+    async def is_valid(self, row, queries: list) -> bool:
+        for query in queries:
+            if False not in [
+                row[key] == value for (key, value) in query.items()
+            ]:
                 return True
 
         return False
-
-    async def init_schema(self, entity: Entity) -> None:
-        if entity.__name__ not in self.data:
-            self.data[entity.__name__] = []

@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from functools import cache
-from typing import Optional, TypeVar
+from typing import Optional
 
 from sharded.drivers import Driver, get_driver
 from sharded.entity import Bucket, Entity, Storage
 from sharded.repository import (BucketRepository, Repository,
-                                     StorageRepository,
-                                     get_entity_repository_class)
+                                StorageRepository, get_entity_repository_class)
 from sharded.schema import BucketStatus, StorageClass, StorageDriver
 
 
@@ -51,40 +50,55 @@ class Gateway:
     async def find_or_create(
         self,
         entity: type[Entity],
-        create: Optional[dict | list] = None,
-        find: Optional[dict | list] = None,
+        data: Optional[dict | list] = None,
+        query: Optional[dict | list] = None,
         key: Optional[any] = None,
     ) -> Entity:
-        if find is None:
-            find = create
+        if query is None:
+            query = data
         context = await self.context(entity, key)
         return context.repository.make(
             entity=entity,
             row=await context.driver.find_or_create(
                 name=entity.__name__,
-                find=dict(bucket_id=context.bucket.id, **find),
-                create=dict(bucket_id=context.bucket.id, **create),
+                query=dict(bucket_id=context.bucket.id, **query),
+                data=dict(bucket_id=context.bucket.id, **data),
+            )
+        )
+
+    async def create(
+        self,
+        entity: type[Entity],
+        data: Optional[dict | list] = None,
+        key: Optional[any] = None,
+    ) -> Entity:
+        context = await self.context(entity, key)
+        return context.repository.make(
+            entity=entity,
+            row=await context.driver.create(
+                name=entity.__name__,
+                data=dict(bucket_id=context.bucket.id, **data),
             )
         )
 
     async def find(
         self,
         entity: type[Entity],
-        params: Optional[dict | list] = None,
+        queries: Optional[dict | list] = None,
         key: Optional[any] = None,
     ) -> list[Entity]:
         # return repository.get_instances(entity, data)
-        # return await repository.find(entity, bucket, params)
+        # return await repository.find(entity, bucket, queries)
         context = await self.context(entity, key)
-        if not params:
-            params = {}
-        if isinstance(params, dict):
-            params = [params]
+        if not queries:
+            queries = {}
+        if isinstance(queries, dict):
+            queries = [queries]
 
-        params = [
-            dict(bucket_id=context.bucket.id, **param) for param in params
+        queries = [
+            dict(bucket_id=context.bucket.id, **query) for query in queries
         ]
-        rows = await context.driver.find(entity.__name__, params)
+        rows = await context.driver.find(entity.__name__, queries)
 
         return [context.repository.make(entity, row) for row in rows]
 
@@ -128,16 +142,16 @@ class Gateway:
 
     async def get_bucket(self, repository: Repository, key: any) -> Bucket:
         if isinstance(repository, BucketRepository):
-            return self.repositories[BucketRepository].bucket_bucket
+            return self.repositories[BucketRepository].buckets[Bucket]
         if isinstance(repository, StorageRepository):
-            return self.repositories[BucketRepository].storage_bucket
+            return self.repositories[BucketRepository].buckets[Storage]
         return await self.find_or_create(
             entity=Bucket,
-            find={
+            query={
                 'key': await repository.get_key(key),
                 'repository': repository,
             },
-            create={
+            data={
                 'key': await repository.get_key(key),
                 'repository': repository,
                 'status': BucketStatus.NEW,
