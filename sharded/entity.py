@@ -25,5 +25,5 @@ class Bucket(Entity):
     storage_id: int
     status: BucketStatus
 
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         return hash((self.repository, self.key))

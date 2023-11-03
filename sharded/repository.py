@@ -26,8 +26,10 @@ class Repository:
         if not self.indexes:
             self.indexes = []
 
+        self.map: dict[type[Entity], dict[int, Entity]] = {}
         for entity in self.entities:
             self.indexes.insert(0, UniqueIndex(entity, ['id']))
+            self.map[entity] = {}
 
     async def cast_storage(self, storages: list[Storage]) -> Storage:
         return storages[0]
@@ -43,38 +45,49 @@ class Repository:
             await driver.init_schema(entity)
 
     def make(self, entity: type[Entity], row: dict) -> Entity:
-        return entity(**{k: v for (k, v) in row.items() if k != 'bucket_id'})
+        if row['id'] in self.map[entity]:
+            instance = self.map[entity][row['id']]
+            for key, value in row.items():
+                setattr(instance, key, value)
+        else:
+            instance = entity(**{
+                k: v for (k, v) in row.items() if k != 'bucket_id'
+            })
+            self.map[entity][row['id']] = instance
+
+        return instance
+
+
+def get_entity_repository_class(entity: type[Entity]) -> type[Repository]:
+    map = get_entity_repository_map()
+    if entity not in map:
+        raise LookupError(f'No entity repository found: {entity}')
+    return map[entity]
 
 
 @cache
-def get_entity_repository_class(entity: type[Entity]) -> type[Repository]:
-    repositories = [
-        repository for repository in Repository.__subclasses__()
-        if entity in repository.entities
-    ]
-    if not len(repositories):
-        raise LookupError(f'No entity repository found: {entity}')
+def get_entity_repository_map() -> dict[type[Entity], type[Repository]]:
+    map: dict[type[Entity], type[Repository]] = {}
+    for repository in Repository.__subclasses__():
+        for entity in repository.entities:
+            if entity in map:
+                raise LookupError(f'Duplicate entity repository: {entity}')
+            map[entity] = repository
 
-    if len(repositories) > 1:
-        raise LookupError(f'Duplicate entity repository: {entity}')
-
-    return repositories[0]
+    return map
 
 
 class BucketRepository(Repository):
-    buckets: dict[type[Entity], Bucket]
+    bucket_id: int = 1
     entities = [Bucket]
 
-    def __init__(self) -> None:
-        self.buckets = {}
-
-    async def bootstrap(self, driver: Driver) -> tuple[Bucket, Bucket]:
+    async def bootstrap(self, driver: Driver) -> None:
         bucket_row = await driver.find_or_create(
-            name='Bucket',
-            query={'id': 1},
+            entity=Bucket,
+            query={'id': BucketRepository.bucket_id},
             data={
-                'bucket_id': 1,
-                'id': 1,
+                'bucket_id': BucketRepository.bucket_id,
+                'id': BucketRepository.bucket_id,
                 'key': '',
                 'repository': BucketRepository,
                 'status': BucketStatus.READY,
@@ -83,11 +96,11 @@ class BucketRepository(Repository):
         )
 
         storage_row = await driver.find_or_create(
-            name='Bucket',
-            query={'id': 2},
+            entity=Bucket,
+            query={'id': StorageRepository.bucket_id},
             data={
-                'bucket_id': 1,
-                'id': 2,
+                'bucket_id': BucketRepository.bucket_id,
+                'id': StorageRepository.bucket_id,
                 'key': '',
                 'repository': StorageRepository,
                 'status': BucketStatus.READY,
@@ -95,16 +108,19 @@ class BucketRepository(Repository):
             }
         )
 
-        self.buckets[Bucket] = self.make(Bucket, bucket_row)
-        self.buckets[Storage] = self.make(Bucket, storage_row)
+        self.make(Bucket, bucket_row)
+        self.make(Bucket, storage_row)
 
 
 class StorageRepository(Repository):
+    bucket_id: int = 2
     entities = [Storage]
 
-    async def bootstrap(self, driver: Driver, storage: Storage):
+    async def bootstrap(self, driver: Driver, storage: Storage) -> None:
         await driver.find_or_create(
-            name='Storage',
+            entity=Storage,
             query={'id': storage.id},
-            data=dict(bucket_id=2, **storage.__dict__),
+            data=dict(
+                bucket_id=StorageRepository.bucket_id, **storage.__dict__
+            ),
         )

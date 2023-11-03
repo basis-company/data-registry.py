@@ -1,5 +1,4 @@
-from functools import cache
-from typing import Optional, Protocol
+from typing import Protocol
 
 from sharded.entity import Entity
 from sharded.schema import StorageDriver
@@ -9,22 +8,24 @@ class Driver(Protocol):
     def __init__(self, dsn: str) -> None:
         ...
 
-    async def create(self, name: str, data: dict) -> dict:
+    async def create(self, entity: type[Entity], data: dict) -> dict:
         raise NotImplementedError()
 
-    async def find(self, name: str, queries: list[dict]) -> list[dict]:
+    async def find(
+        self, entity: type[Entity], queries: list[dict]
+    ) -> list[dict]:
         raise NotImplementedError()
 
     async def find_or_create(
-        self, name: str, query: dict, data: dict
+        self, entity: type[Entity], query: dict, data: dict
     ) -> dict:
-        result = await self.find(name, [query])
+        result = await self.find(entity, [query])
         if len(result):
             return result[0]
 
-        return await self.create(name, data)
+        return await self.create(entity, data)
 
-    async def init_schema(self, entity: Entity) -> None:
+    async def init_schema(self, entity: type[Entity]) -> None:
         raise NotImplementedError()
 
 
@@ -39,9 +40,8 @@ async def get_driver(driver: StorageDriver, dsn: str) -> Driver:
     return driver_instances[driver][dsn]
 
 
-@cache
-def get_implementation(driver):
-    implementations: dict[StorageDriver, Driver] = {
+def get_implementation(driver: StorageDriver) -> type[Driver]:
+    implementations: dict[StorageDriver, type[Driver]] = {
         StorageDriver.MEMORY: MemoryDriver
     }
     if driver in implementations:
@@ -50,25 +50,27 @@ def get_implementation(driver):
 
 
 class MemoryDriver(Driver):
-    data: Optional[dict[str, list[dict]]] = None
+    def __init__(self, dsn: str) -> None:
+        self.data: dict[type[Entity], list[dict]] = {}
 
-    async def create(self, name: str, data: dict) -> dict:
-        data['id'] = len(self.data[name]) + 1
-        self.data[name].append(data)
+    async def create(self, entity: type[Entity], data: dict) -> dict:
+        await self.init_schema(entity)
+        data['id'] = len(self.data[entity]) + 1
+        self.data[entity].append(data)
         return data
 
-    async def find(self, name: str, queries: list[dict]) -> list[dict]:
+    async def find(
+        self, entity: type[Entity], queries: list[dict]
+    ) -> list[dict]:
+        await self.init_schema(entity)
         return [
-            row for row in self.data[name]
+            row for row in self.data[entity]
             if await self.is_valid(row, queries)
         ]
 
-    async def init_schema(self, entity: Entity) -> None:
-        if not self.data:
-            self.data = {}
-
-        if entity.__name__ not in self.data:
-            self.data[entity.__name__] = []
+    async def init_schema(self, entity: type[Entity]) -> None:
+        if entity not in self.data:
+            self.data[entity] = []
 
     async def is_valid(self, row, queries: list) -> bool:
         for query in queries:
