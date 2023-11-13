@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sharded"
+name = "data-registry"
 version = "0.0.0"
 authors = [
   { name="Dmitry Krokhin", email="nekufa@gmail.com" },
@@ -18,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/basis-company/sharded.py"
-"Bug Tracker" = "https://github.com/basis-company/sharded.py/issues"
+"Homepage" = "https://github.com/basis-company/data-registry.py"
+"Bug Tracker" = "https://github.com/basis-company/data-registry.py/issues"
