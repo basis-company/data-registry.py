@@ -89,7 +89,7 @@ class Registry:
         context = await self.context(entity, key)
         return context.repository.make(
             entity=entity,
-            row=await context.driver.create(
+            row=await context.driver.insert(
                 entity=entity,
                 data=dict(bucket_id=context.bucket.id, **data),
             )
