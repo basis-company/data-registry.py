@@ -1,0 +1,5 @@
+anyio
+asyncpg
+asynctnt
+pytest
+pytest-asyncio

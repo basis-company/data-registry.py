@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+
+  tarantool:
+    image: tarantool/tarantool
+
+  tests:
+    build: .
+    depends_on:
+      - postgres
+      - tarantool
+    volumes:
+      - './registry:/app/registry'
+      - './tests:/app/tests'
