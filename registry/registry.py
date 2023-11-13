@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any, Optional
 
-from sharded.drivers import Driver, get_driver
-from sharded.entity import Bucket, Entity, Storage
-from sharded.repository import (BucketRepository, Repository,
-                                StorageRepository, get_entity_repository_class)
-from sharded.schema import BucketStatus, StorageClass, StorageDriver
+from registry.drivers import Driver, get_driver
+from registry.entity import Bucket, Entity, Storage
+from registry.repository import (BucketRepository, Repository,
+                                 StorageRepository,
+                                 get_entity_repository_class)
+from registry.schema import BucketStatus, StorageClass, StorageDriver
 
 
 @dataclass
@@ -151,7 +152,7 @@ class Registry:
 
         return QueryContext(bucket, driver, entity, repository)
 
-    async def get_bucket(self, repository: Repository, key: Any) -> Bucket:
+    async def get_bucket(self, repository: Repository, key: Any):
         if isinstance(repository, BucketRepository | StorageRepository):
             buckets = self.get_repository(BucketRepository)
             bucket = buckets.map[Bucket][repository.bucket_id]

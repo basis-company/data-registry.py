@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 from pytest import mark
 
-from sharded.entity import Entity
-from sharded.registry import Registry
-from sharded.repository import Index, Repository
+from registry.entity import Entity
+from registry.registry import Registry
+from registry.repository import Index, Repository
 
 
 @dataclass

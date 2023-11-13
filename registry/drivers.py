@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from sharded.entity import Entity
-from sharded.schema import StorageDriver
+from registry.entity import Entity
+from registry.schema import StorageDriver
 
 
 class Driver(Protocol):

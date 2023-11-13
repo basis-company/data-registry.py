@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sharded.schema import BucketStatus, StorageClass, StorageDriver
+from registry.schema import BucketStatus, StorageClass, StorageDriver
 
 
 @dataclass

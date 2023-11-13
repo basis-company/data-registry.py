@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Optional
 
-from sharded.drivers import Driver
-from sharded.entity import Bucket, Entity, Storage
-from sharded.schema import BucketStatus
+from registry.drivers import Driver
+from registry.entity import Bucket, Entity, Storage
+from registry.schema import BucketStatus
 
 
 @dataclass
