@@ -68,6 +68,9 @@ class Registry:
         if query is None:
             query = data
         context = await self.context(entity, key)
+        for key, value in entity.get_default_values().items():
+            if key not in data:
+                data[key] = value
         return context.repository.make(
             entity=entity,
             row=await context.driver.find_or_create(
@@ -159,17 +162,17 @@ class Registry:
             if isinstance(bucket, Bucket):
                 return bucket
 
+        key = await repository.transform_key(key)
         return await self.find_or_create(
             entity=Bucket,
             query={
-                'key': await repository.get_key(key),
+                'key': key,
                 'repository': repository,
             },
             data={
-                'key': await repository.get_key(key),
+                'key': key,
                 'repository': repository,
                 'status': BucketStatus.NEW,
-                'storage_id': 0,
             },
         )
 

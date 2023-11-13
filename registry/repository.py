@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cache
-from typing import Optional
+from typing import Any, Optional
 
 from registry.drivers import Driver
 from registry.entity import Bucket, Entity, Storage
@@ -34,7 +34,7 @@ class Repository:
     async def cast_storage(self, storages: list[Storage]) -> Storage:
         return storages[0]
 
-    async def get_key(self, context: dict) -> str:
+    async def transform_key(self, key: Any) -> str:
         return ''
 
     async def init_data(self, bucket: Bucket, driver: Driver) -> None:
