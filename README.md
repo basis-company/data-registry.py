@@ -1,3 +1,5 @@
-# Sharded
+# Tests
 
-Sharded data organizer
+```bash
+docker-compose run tests
+```
