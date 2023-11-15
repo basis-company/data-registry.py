@@ -19,15 +19,15 @@ class QueryContext:
 
 
 class Registry:
-    def __init__(self) -> None:
+    def __init__(self, storages: Optional[list[Storage]] = None) -> None:
         self.ready: bool = False
         self.repositories: dict[type[Repository], Repository] = {
             repository: repository()
             for repository in Repository.__subclasses__()
         }
-        self.storages: list[Storage] = [
+        self.storages: list[Storage] = storages or [
             Storage(
-                id=1,
+                id=StorageRepository.storage_id,
                 storage_class=StorageClass.MEMORY,
                 driver=StorageDriver.MEMORY,
                 dsn=''
@@ -40,21 +40,27 @@ class Registry:
 
         return self.repositories[cls]
 
-    async def bootstrap(self, source: Optional[Storage] = None):
+    async def bootstrap(self):
         if self.ready:
             return
 
+        primary: Optional[Storage] = None
         self.ready = True
-        if not source:
-            source = self.storages[0]
 
-        driver = await get_driver(source.driver, source.dsn)
+        for candidate in self.storages:
+            if candidate.id == StorageRepository.storage_id:
+                primary = self.storages[0]
+
+        if not primary:
+            raise LookupError('primary storage not found')
+
+        driver = await get_driver(primary.driver, primary.dsn)
 
         for repository in self.repositories.values():
             if isinstance(repository, BucketRepository):
                 await repository.bootstrap(driver)
             if isinstance(repository, StorageRepository):
-                await repository.bootstrap(driver, source)
+                await repository.bootstrap(driver, primary)
 
     async def find_or_create(
         self,

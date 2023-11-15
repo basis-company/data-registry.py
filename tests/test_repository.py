@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from pytest import mark
 
 from registry.drivers import get_driver
-from registry.entity import Entity
+from registry.entity import Entity, Storage
 from registry.registry import Registry
 from registry.repository import Index, Repository
+from registry.schema import StorageClass, StorageDriver
 
 
 @dataclass
@@ -30,8 +31,12 @@ class ActionRepository(Repository):
 
 
 @mark.asyncio
-async def test_hello():
-    registry = Registry()
+@mark.parametrize("storage", [
+    Storage(1, StorageClass.HOT, StorageDriver.MEMORY, '1'),
+    Storage(1, StorageClass.HOT, StorageDriver.MEMORY, '2'),
+])
+async def test_hello(storage: Storage):
+    registry = Registry([storage])
     assert len(await registry.find(Action)) == 0
 
     # create two actions

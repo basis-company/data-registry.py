@@ -84,27 +84,31 @@ class BucketRepository(Repository):
     async def bootstrap(self, driver: Driver) -> None:
         bucket_row = await driver.find_or_create(
             entity=Bucket,
-            query={'id': BucketRepository.bucket_id},
+            query={
+                'id': BucketRepository.bucket_id
+            },
             data={
                 'bucket_id': BucketRepository.bucket_id,
                 'id': BucketRepository.bucket_id,
                 'key': '',
                 'repository': BucketRepository,
                 'status': BucketStatus.READY,
-                'storage_id': 1,
+                'storage_id': StorageRepository.storage_id,
             }
         )
 
         storage_row = await driver.find_or_create(
             entity=Bucket,
-            query={'id': StorageRepository.bucket_id},
+            query={
+                'id': StorageRepository.bucket_id
+            },
             data={
                 'bucket_id': BucketRepository.bucket_id,
                 'id': StorageRepository.bucket_id,
                 'key': '',
                 'repository': StorageRepository,
                 'status': BucketStatus.READY,
-                'storage_id': 1,
+                'storage_id': StorageRepository.storage_id,
             }
         )
 
@@ -114,13 +118,19 @@ class BucketRepository(Repository):
 
 class StorageRepository(Repository):
     bucket_id: int = 2
+    storage_id: int = 1
     entities = [Storage]
 
     async def bootstrap(self, driver: Driver, storage: Storage) -> None:
+        if storage.id != self.storage_id:
+            raise ValueError(f'Invalid storage_id: {storage.id}')
         await driver.find_or_create(
             entity=Storage,
-            query={'id': storage.id},
+            query=dict(
+                id=storage.id,
+            ),
             data=dict(
-                bucket_id=StorageRepository.bucket_id, **storage.__dict__
+                bucket_id=StorageRepository.bucket_id,
+                **storage.__dict__
             ),
         )
