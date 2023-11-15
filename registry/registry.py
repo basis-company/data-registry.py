@@ -40,13 +40,13 @@ class Registry:
 
         return self.repositories[cls]
 
-    async def bootstrap(self):
+    async def bootstrap(self) -> None:
         if self.ready:
             return
 
-        primary: Optional[Storage] = None
         self.ready = True
 
+        primary: Optional[Storage] = None
         for candidate in self.storages:
             if candidate.id == StorageRepository.storage_id:
                 primary = self.storages[0]

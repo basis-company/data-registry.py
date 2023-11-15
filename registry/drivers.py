@@ -25,6 +25,8 @@ class Driver(Protocol):
         if len(rows):
             return rows[0]
 
+        return None
+
     async def find_or_create(
         self, entity: type[Entity], query: dict, data: dict
     ) -> dict:
@@ -41,7 +43,7 @@ class Driver(Protocol):
     ) -> dict:
         instance = await self.find_one(entity, queries)
         if not instance:
-            raise LookupError(f'{entity.nick} not found')
+            raise LookupError(f'{entity.__name__} not found')
 
         return instance
 
