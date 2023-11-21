@@ -10,6 +10,13 @@ services:
   tarantool:
     image: tarantool/tarantool
 
+  tarantool-admin:
+    image: quay.io/basis-company/tarantool-admin
+    environment:
+      TARANTOOL_CONNECTIONS: 'tarantool'
+    ports:
+      - "80:80"
+
   tests:
     build: .
     depends_on:

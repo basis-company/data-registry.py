@@ -8,4 +8,4 @@ RUN pip install --upgrade pip --no-cache-dir -r requirements.txt
 COPY ./registry /app/registry
 COPY ./tests /app/tests
 
-CMD pytest
+CMD pytest -s

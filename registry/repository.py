@@ -13,6 +13,10 @@ class Index:
     fields: list[str]
     unique: bool = False
 
+    @property
+    def name(self) -> str:
+        return '_'.join(self.fields)
+
 
 class UniqueIndex(Index):
     unique = True
@@ -20,21 +24,17 @@ class UniqueIndex(Index):
 
 class Repository:
     entities: list[type[Entity]]
-    indexes: Optional[list[Index]] = None
+    indexes: list[Index] = []
 
     def __init__(self) -> None:
-        if not self.indexes:
-            self.indexes = []
-
         self.map: dict[type[Entity], dict[int, Entity]] = {}
         for entity in self.entities:
-            self.indexes.insert(0, UniqueIndex(entity, ['id']))
             self.map[entity] = {}
 
     async def cast_storage(self, storages: list[Storage]) -> Storage:
         return storages[0]
 
-    async def transform_key(self, key: Any) -> str:
+    async def transform_key(self, key: Optional[Any] = None) -> str:
         return ''
 
     async def init_data(self, bucket: Bucket, driver: Driver) -> None:
@@ -80,12 +80,16 @@ def get_entity_repository_map() -> dict[type[Entity], type[Repository]]:
 class BucketRepository(Repository):
     bucket_id: int = 1
     entities = [Bucket]
+    indexes: list[Index] = [
+        Index(entity=Bucket, fields=['repository', 'key'], unique=True)
+    ]
 
     async def bootstrap(self, driver: Driver) -> None:
         bucket_row = await driver.find_or_create(
             entity=Bucket,
             query={
-                'id': BucketRepository.bucket_id
+                'bucket_id': BucketRepository.bucket_id,
+                'id': BucketRepository.bucket_id,
             },
             data={
                 'bucket_id': BucketRepository.bucket_id,
@@ -100,7 +104,8 @@ class BucketRepository(Repository):
         storage_row = await driver.find_or_create(
             entity=Bucket,
             query={
-                'id': StorageRepository.bucket_id
+                'bucket_id': BucketRepository.bucket_id,
+                'id': StorageRepository.bucket_id,
             },
             data={
                 'bucket_id': BucketRepository.bucket_id,
@@ -127,6 +132,7 @@ class StorageRepository(Repository):
         await driver.find_or_create(
             entity=Storage,
             query=dict(
+                bucket_id=StorageRepository.bucket_id,
                 id=storage.id,
             ),
             data=dict(

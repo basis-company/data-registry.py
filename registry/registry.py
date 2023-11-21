@@ -54,7 +54,7 @@ class Registry:
         if not primary:
             raise LookupError('primary storage not found')
 
-        driver = await get_driver(primary.driver, primary.dsn)
+        driver = get_driver(primary.driver, primary.dsn)
 
         for repository in self.repositories.values():
             if isinstance(repository, BucketRepository):
@@ -72,7 +72,7 @@ class Registry:
         if data is None:
             data = {}
         if query is None:
-            query = data
+            query = dict(**data)
         context = await self.context(entity, key)
         for key, value in entity.get_default_values().items():
             if key not in data:
@@ -137,7 +137,7 @@ class Registry:
         await self.bootstrap()
 
         repository = self.get_repository(get_entity_repository_class(entity))
-        bucket = await self.get_bucket(repository, key)
+        bucket = await self.get_bucket(repository.__class__, key)
 
         if not bucket.storage_id:
             storage = await repository.cast_storage(self.storages)
@@ -145,7 +145,7 @@ class Registry:
         else:
             storage = self.get_storage(bucket.storage_id)
 
-        driver = await get_driver(storage.driver, storage.dsn)
+        driver = get_driver(storage.driver, storage.dsn)
 
         if bucket.status == BucketStatus.NEW:
             await repository.init_schema(driver)
@@ -161,14 +161,18 @@ class Registry:
 
         return QueryContext(bucket, driver, entity, repository)
 
-    async def get_bucket(self, repository: Repository, key: Any):
-        if isinstance(repository, BucketRepository | StorageRepository):
+    async def get_bucket(
+        self,
+        repository: type[Repository],
+        key: Optional[Any] = None
+    ) -> Bucket:
+        if repository is BucketRepository or repository is StorageRepository:
             buckets = self.get_repository(BucketRepository)
             bucket = buckets.map[Bucket][repository.bucket_id]
             if isinstance(bucket, Bucket):
                 return bucket
 
-        key = await repository.transform_key(key)
+        key = await self.get_repository(repository).transform_key(key)
         return await self.find_or_create(
             entity=Bucket,
             query={
